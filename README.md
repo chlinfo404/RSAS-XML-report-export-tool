@@ -8,4 +8,4 @@ transform the zip of XML reports to xlsx reports,work for RSAS 6.0
 ### how to use:
 before use： Check if openpyxl  is installed
 
-Usage: python3 .\main.py <zip file>
+Usage: python3 .\main.py <zip_file>
