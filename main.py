@@ -16,27 +16,17 @@ from collections import defaultdict
 from sys import argv
 from zipfile import ZipFile
 
-# 配置日志记录
-
-# 配置日志记录，同时输出到控制台和文件
+# log configuration
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-# 创建控制台 handler
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
-
-# 创建文件 handler，并指定编码
 log_file = "export_tools.log"
 fh = logging.FileHandler(log_file, encoding='utf-8')
 fh.setLevel(logging.DEBUG)
-
-# 定义日志格式
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 fh.setFormatter(formatter)
-
-# 添加 handler 到 logger
 logger.addHandler(ch)
 logger.addHandler(fh)
 
@@ -46,15 +36,11 @@ def GetRiskLevel(risk_points):
         "低危" if risk_points >= 0 and risk_points < 4 else
         "中危" if risk_points >= 4 and risk_points < 7 else
         "高危" if risk_points >= 7 and risk_points <= 10 else
-        None  # 或者其他默认值，表示不符合任何风险等级或risk_points为None
+        None
     ) if risk_points is not None else None
 
 
 def parse_xml_to_xlsx(xml_file):
-    """
-    Parses the XML file, combines vulnerability scan data with detail data,
-    and exports it to a CSV file.
-    """
     try:
         tree = ET.parse(xml_file)
         root = tree.getroot()
@@ -64,23 +50,13 @@ def parse_xml_to_xlsx(xml_file):
     except ET.ParseError as e:
         logging.error(f"Error parsing XML file: {e}")
         return
-
-    # Prepare data for CSV
     data_list = []
     serial_number = 1
-
-    # Find all <target> elements
     targets = root.findall(".//data/report/targets/target")
     fileName = root.find(".//data/report/task/name").text
     for target in targets:
         ip_element = target.find("ip")
         ip_address = ip_element.text if ip_element is not None else "N/A"
-
-        # 1. Process <vuln_detail> first to create a lookup dictionary
-        #    This will be a defaultdict where vul_id maps to a list of detail dictionaries
-        #    (though in this XML, each vul_id appears to have only one detail entry)
-        vuln_details_lookup = defaultdict(dict)  # Using dict as value since each vul_id seems unique in detail
-
         vuln_detail_elements = target.find("vuln_detail")
         if vuln_detail_elements is not None:
             for detail_vuln in vuln_detail_elements.findall("vuln"):
@@ -89,15 +65,12 @@ def parse_xml_to_xlsx(xml_file):
                 risk_points = detail_vuln.find("risk_points").text if detail_vuln.find("risk_points") is not None else "N/A"
                 solution = detail_vuln.find("solution").text if detail_vuln.find("solution") is not None else "N/A"
                 description = detail_vuln.find("description").text if detail_vuln.find("description") is not None else "N/A"
-
                 vuln_details_lookup[vul_id] = {
                     "name": name,
-                    "level": GetRiskLevel(float(risk_points)),  # Mapping risk_points to 'level' as per CSV fields
+                    "level": GetRiskLevel(float(risk_points)), 
                     "description": description,
                     "solution": solution
                 }
-
-        # 2. Process <vuln_scanned> and combine with details using the lookup
         vuln_scanned_elements = target.find("vuln_scanned")
         if vuln_scanned_elements is not None:
             for scanned_vuln in vuln_scanned_elements.findall("vuln"):
@@ -126,34 +99,31 @@ def parse_xml_to_xlsx(xml_file):
     fieldnames = ["序号", "风险名称", "风险等级", "风险描述", "加固建议", "风险来源", "端口", "扫描设备"]
     wb = Workbook()
     ws = wb.active
-    ws.title = "漏洞清单"  # 可以自定义工作表名称
-    # --- 设置表头样式 ---
-    # 定义字体样式
+    ws.title = "漏洞清单"  # 自定义工作表名称
+    # --- set workbook tittle style ---
+    # set font
     header_font = Font(
         bold=True,    # 加粗
     )
-
-    # 定义填充样式 (背景色)
+    # set fill
     header_fill = PatternFill(
         start_color='4F81BD',  # 背景颜色 (深蓝色)
         end_color='4F81BD',
         fill_type='solid'
     )
-
-    # 定义对齐样式
+    # set aligment
     header_alignment = Alignment(
         horizontal='center',  # 水平居中
         vertical='center'    # 垂直居中
     )
-
-    # 定义边框样式
+    # set border
     thin_border = Border(
         left=Side(style='thin'),
         right=Side(style='thin'),
         top=Side(style='thin'),
         bottom=Side(style='thin')
     )
-    # 1. 写入表头 (类似 writer.writeheader())
+    
     for col_idx, header_name in enumerate(fieldnames, 1):
         cell = ws.cell(row=1, column=col_idx, value=header_name)
         cell.font = header_font
@@ -173,20 +143,17 @@ def parse_xml_to_xlsx(xml_file):
     except Exception as e:
         logging.error(f"保存Excel文件时出错: {e}")
 
-
 if __name__ == '__main__':
     if len(argv) == 2 and argv[1].endswith('.zip'):
         with ZipFile(argv[1], 'r') as zip_ref:
             logging.info(f"ZIP文件 '{argv[1]}' 正在进行转换")
             for file_info in zip_ref.filelist:
                 if file_info.filename.endswith('.xml'):
-                    # 打开并处理 XML 文件内容
                     with zip_ref.open(file_info.filename) as xml_file:
-                        # 注意：zip 内文件是二进制流，parse 需要 BytesIO 或临时写入磁盘
                         try:
                             parse_xml_to_xlsx(xml_file)
                         except ET.ParseError as e:
-                            logging.error(f"解析XML失败(来自ZIP): {file_info.filename} - {e}")
+                            logging.error(f"解析失败: {file_info.filename} - {e}")
                     pass
         logging.info(f"ZIP文件 '{argv[1]}' 转换完成")
     else:
