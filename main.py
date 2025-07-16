@@ -87,7 +87,7 @@ def parse_xml_to_xlsx(xml_file):
                     "加固建议": detail_info.get("solution", "N/A"),
                     "风险来源": ip_address,
                     "端口": port,
-                    "扫描设备": f"绿盟RSAS (漏洞库版本{root.find(".//data/report/vultpl_version").text})",
+                    "扫描设备": f"绿盟RSAS (漏洞库版本{root.find(".//data/report/sysvul_version").text})",
                 }
                 if row["风险等级"] != "低危":
                     data_list.append(row)
